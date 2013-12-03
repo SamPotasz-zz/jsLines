@@ -11,8 +11,10 @@
         
         var stage;
         
+        //to keep track of alternating between horizontal and vertical lines
         var even = false;
         
+        //for the possible extending to different sized canvases in the future
         var STAGE_X = 0;
         var STAGE_Y = 0;
         var STAGE_WIDTH = 500;
@@ -77,6 +79,9 @@
             return new Segment(pressX, topBorder, pressX, bottomBorder);
         }
         
+        /**
+         * Data structure to hold the location of a line segment
+         */
         function Segment(fromX, fromY, toX, toY) {
             this.fromX = fromX;
             this.fromY = fromY;
@@ -84,6 +89,9 @@
             this.toY = toY;
         }
         
+        /**
+         * Segments add themselves to arrays because the arrays are logic-less
+         */
         Segment.prototype.addToArray = function() {
             if (this.isHorizontal()) {
                 insertHorizontalSegment(this);
@@ -99,6 +107,7 @@
         Segment.prototype.isHorizontal = function() {
             return this.fromY == this.toY;
         }
+        
         /**
          * void -> bool
          */
@@ -106,6 +115,9 @@
             return this.fromX == this.toX;
         }
         
+        /**
+         * Draws the segment on the canvas
+         */
         Segment.prototype.drawSelf = function() {
             var s = new createjs.Shape();
             var g = s.graphics;
@@ -240,16 +252,18 @@
             return STAGE_WIDTH;
         }
         
+        //create a new horizontal segment & draw it
         function drawHorizontal(pressX, pressY) {
             new Segment(STAGE_X, pressY, STAGE_WIDTH, pressY).drawSelf();
             
         }
         
+        //create a new vertical segment & draw it
         function drawVertical(pressX, pressY) {
             new Segment(pressX, STAGE_Y, pressX, STAGE_HEIGHT).drawSelf();
-            //drawSegment(pressX, STAGE_Y, pressX, STAGE_HEIGHT);
         }
         
+        //debug method for testing hit points
         function drawCircle(x, y) {
             var circle = new createjs.Shape();
             circle.graphics.beginFill("red").drawCircle(0, 0, 10);
@@ -259,6 +273,7 @@
             stage.update();
         }
         
+        //color in a region of the screen
         function drawBox(xMin, yMin, xMax, yMax) {
             var box = new createjs.Shape();
             box.graphics.beginFill(getRandomColor());
@@ -267,6 +282,7 @@
             stage.update();
         }
         
+        //
         function drawSegment(fromX, fromY, toX, toY, color) {
             var s = new createjs.Shape();
             var g = s.graphics;
