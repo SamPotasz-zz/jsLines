@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="css/styles.css" rel="stylesheet">
+    <script src="http://code.createjs.com/easeljs-0.6.0.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function()
+        {
+            init();
+        }, false);
+        
+        var stage;
+        
+        var even = false;
+        
+        var STAGE_X = 0;
+        var STAGE_Y = 0;
+        var STAGE_WIDTH = 500;
+        var STAGE_HEIGHT = 300;
+        
+        //sorted array of vertical lines
+        var verticals = new Array();
+        
+        //sorted array of horizontal lines
+        var horizontals = new Array();
+        
+        /**
+         * mouse coordinates -> Segment
+         */
+        function createHorizontal(pressX, pressY) {
+            leftBorder = STAGE_X;
+            rightBorder = STAGE_WIDTH;
+            
+            for(i=0; i<verticals.length; i++) {
+                var currVert = verticals[i];
+                if (currVert.fromY < pressY && currVert.toY > pressY) {
+                    //if vert is to left of click & intersects,
+                    //vert is new leftBorder.
+                    if (currVert.fromX <= pressX) {
+                        leftBorder = currVert.fromX;
+                    }
+                    
+                    //first vert we find to the right that intersects
+                    //is right border. break.
+                    if (currVert.fromX >= pressX) {
+                        rightBorder = currVert.fromX;
+                        break;
+                    }
+                }
+            }
+            
+            return new Segment(leftBorder, pressY, rightBorder, pressY);
+        }
+        
+        /**
+         * mouse coordinates -> Segment
+         */
+        function createVertical(pressX, pressY) {
+            topBorder = STAGE_Y;
+            bottomBorder = STAGE_HEIGHT;
+            
+            for(i=0; i<horizontals.length; i++) {
+                var currHoriz = horizontals[i];
+                //we only care about lines that will intersect our new line
+                if (currHoriz.fromX < pressX && currHoriz.toX > pressX) {
+                    if (currHoriz.fromY <= pressY) {
+                        topBorder = currHoriz.fromY;
+                    }
+                    
+                    if (currHoriz.fromY >= pressY) {
+                        bottomBorder = currHoriz.fromY;
+                        break;
+                    }
+                }
+            }
+            
+            return new Segment(pressX, topBorder, pressX, bottomBorder);
+        }
+        
+        function Segment(fromX, fromY, toX, toY) {
+            this.fromX = fromX;
+            this.fromY = fromY;
+            this.toX = toX;
+            this.toY = toY;
+        }
+        
+        Segment.prototype.addToArray = function() {
+            if (this.isHorizontal()) {
+                insertHorizontalSegment(this);
+            }
+            else {
+                insertVerticalSegment(this);
+            }
+        }
+        
+        /**
+         * void -> bool
+         */
+        Segment.prototype.isHorizontal = function() {
+            return this.fromY == this.toY;
+        }
+        /**
+         * void -> bool
+         */
+        Segment.prototype.isVertical = function() {
+            return this.fromX == this.toX;
+        }
+        
+        Segment.prototype.drawSelf = function() {
+            var s = new createjs.Shape();
+            var g = s.graphics;
+            g.setStrokeStyle(1).beginStroke("#000000");
+            g.moveTo(this.fromX, this.fromY).lineTo(this.toX,this.toY);
+            stage.addChild(s);
+            stage.update();
+        }
+        
+        Segment.prototype.drawBox = function() {
+            if (this.isVertical()) {
+                var index = verticals.indexOf(this);
+            }
+        }
+        
+        /**
+         * horizontals should be sorted by yPosition
+         * Search through horizontals array, while 
+         * arrayY is less than currY. Insert into array
+         * when arrayY is greater. If you reach the end of array,
+         * just push onto back of array
+         */
+        function insertHorizontalSegment( toInsert ) {
+            horizontals.push(toInsert);
+            horizontals.sort(function(a,b){return a.toY - b.toY});
+            console.log(horizontals);
+        }
+        
+        function insertVerticalSegment( toInsert ) {
+            verticals.push(toInsert);
+            verticals.sort(function(a,b){return a.toX - b.toX});
+            console.log(verticals);
+        }
+        
+        function init() {
+            
+            stage = new createjs.Stage("demoCanvas");
+            
+            createjs.Touch.enable(stage);
+            
+            stage.enableDOMEvents(true);
+            stage.addEventListener("stagemousedown", mouseDown);
+            
+            drawBorder();
+        }
+        
+        function drawBorder() {
+            var top = new Segment(0, 0, STAGE_WIDTH, 0);
+            var right = new Segment(STAGE_WIDTH, 0, STAGE_WIDTH, STAGE_HEIGHT);
+            var bottom = new Segment(0, STAGE_HEIGHT, STAGE_WIDTH, STAGE_HEIGHT);
+            var left = new Segment(0, 0, 0, STAGE_HEIGHT);
+            
+            addLine(top, false);
+            addLine(right, false);
+            addLine(bottom, false);
+            addLine(left, false);
+        }
+        
+        function mouseDown(evt) {
+            //drawCircle(stage.mouseX, stage.mouseY);
+            var newLine;
+            var pressX = stage.mouseX;
+            var pressY = stage.mouseY;
+            
+            if (even) {
+                newLine = createHorizontal(pressX, pressY);
+            }
+            else {
+                newLine = createVertical(pressX, pressY);
+            }
+            even = !even;
+            
+            addLine(newLine);
+        }
+        function addLine(newLine, drawBox) {
+            if (typeof drawBox === 'undefined') { drawBox = true; }
+            newLine.drawSelf();
+            newLine.addToArray();
+            if (drawBox) {
+                colorBox(newLine);
+            }
+        }
+        
+        function colorBox(newLine) {
+            if (newLine.isHorizontal()) {
+                xMin = newLine.fromX + 1;
+                xMax = newLine.toX - 1;
+                yMin = newLine.fromY + 1;
+                
+                yMax = getLineBelow(newLine) - 1;
+            }
+            else {
+                xMin = newLine.fromX + 1;
+                xMax = getLineRightOf(newLine) -1;
+                yMin = newLine.fromY + 1;
+                yMax = newLine.toY - 1;
+            }
+            
+            drawBox(xMin, yMin, xMax, yMax);
+            
+        }
+        
+        //gets the yPos of horizontal line bordering the one given to the bottom
+        function getLineBelow(newLine) {
+            for(i=horizontals.indexOf(newLine) + 1; i<horizontals.length; i++) {
+                var currHoriz = horizontals[i];
+                //we only care about lines that will intersect our new line
+                if (currHoriz.fromX <= newLine.fromX &&
+                    currHoriz.toX >= newLine.toX) {
+                    
+                    if (currHoriz.fromY >= newLine.fromY) {
+                        return currHoriz.fromY;
+                    }
+                }
+            }
+            return STAGE_HEIGHT;
+        }
+        
+        //gets the xPos of horizontal line bordering the one given to the right
+        function getLineRightOf(newLine) {
+            for(i=verticals.indexOf(newLine) + 1; i<verticals.length; i++) {
+                var currVert = verticals[i];
+                //we only care about lines that will intersect our new line
+                if (currVert.fromY <= newLine.fromY &&
+                    currVert.toY >= newLine.toY) {
+                    
+                    if (currVert.fromX >= newLine.fromX) {
+                        return currVert.fromX;
+                    }
+                }
+            }
+            return STAGE_WIDTH;
+        }
+        
+        function drawHorizontal(pressX, pressY) {
+            new Segment(STAGE_X, pressY, STAGE_WIDTH, pressY).drawSelf();
+            
+        }
+        
+        function drawVertical(pressX, pressY) {
+            new Segment(pressX, STAGE_Y, pressX, STAGE_HEIGHT).drawSelf();
+            //drawSegment(pressX, STAGE_Y, pressX, STAGE_HEIGHT);
+        }
+        
+        function drawCircle(x, y) {
+            var circle = new createjs.Shape();
+            circle.graphics.beginFill("red").drawCircle(0, 0, 10);
+            circle.x = x;
+            circle.y = y;
+            stage.addChild( circle );
+            stage.update();
+        }
+        
+        function drawBox(xMin, yMin, xMax, yMax) {
+            var box = new createjs.Shape();
+            box.graphics.beginFill(getRandomColor());
+            box.graphics.drawRect(xMin, yMin, xMax - xMin, yMax - yMin);
+            stage.addChild(box);
+            stage.update();
+        }
+        
+        function drawSegment(fromX, fromY, toX, toY, color) {
+            var s = new createjs.Shape();
+            var g = s.graphics;
+            g.setStrokeStyle(3).beginStroke(color);
+            g.moveTo(fromX, fromY).lineTo(toX,toY);
+            stage.addChild(s);
+            stage.update();
+        }
+        
+        var boxColors = //["#FFFFFF","#2DD700", "#00A287", "#FF6700", "#F5001D"];
+        ["#FFFFFF","#5FEB3B", "#34D0B6", "#FF8D40", "#FA3E54"];
+        function getRandomColor() {
+            var index = Math.floor( Math.random() * boxColors.length );
+            return boxColors[index];
+        }
+        
+    </script>
+</head>
+<body>
+    <div id="myDiv">
+        <canvas id="demoCanvas" width="500" height="300">
+        alternate content
+        </canvas>
+    </div>
+    
+</body>
+</html>
